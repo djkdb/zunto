@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "debatenight",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+  // 환경 변수는 대시보드나 `wrangler secret put` 으로 넣는다:
+  //   NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY 는 빌드 시점에 필요하므로
+  //   .env.local 또는 CI 환경 변수로 주고, SUPABASE_SERVICE_ROLE_KEY 는 secret 으로 넣는다.
+}

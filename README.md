@@ -1,36 +1,218 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DEBATENIGHT 🎙️
 
-## Getting Started
+> 술자리에서 시작해서 새벽까지 가는 토론 게임
 
-First, run the development server:
+친구 2~8명이 방 하나 만들어서 시작하는 **실시간 토론 파티 게임**.
+진행자가 필요 없습니다. 앱이 순서, 시간, 규칙을 전부 알려줍니다.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+방 생성 → 코드 공유 → 모드 선택 → 주제 선택 → 입장 선택 → 준비 시간
+→ 주장 → 반박 → 최종 주장 → 익명 투표 → 결과 공개 → 다음 라운드 → 최종 결과
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 바로 해보기
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+`http://localhost:3000` 접속 → **토론 시작하기** → 나온 6자리 코드를 친구에게 전달.
+같은 와이파이라면 `http://<내 로컬 IP>:3000` 으로 친구 폰에서 바로 들어올 수 있습니다.
 
-To learn more about Next.js, take a look at the following resources:
+> 환경 변수 없이도 완전히 동작합니다 (인메모리 + SSE).
+> 서버를 재시작하면 방이 사라지고, 서버리스 배포에서는 동작하지 않습니다. → [배포](#배포)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 무엇이 들어 있나
 
-## Deploy on Vercel
+| | |
+|---|---|
+| 토론 모드 | 7종 (밸런스 · 찬반 · 한 명 설득 · 지목 · 소수 의견 · 변론 게임 · 친구 평가) |
+| 주제 | 348개 · 9개 카테고리 (돈/연애/우정/인생/밸런스/여행/일/심연/카오스) |
+| 추천 | 인원 · 분위기 · 시간대 · 라운드 · 직전 재미도를 반영한 가중치 추천 |
+| 랜덤 이벤트 | 6종 (악마의 변호인 · 더블 타임 · 한 문장 · 타겟 지정 · 침묵 · 주제 전환) |
+| 비밀 미션 | 15종 · 라운드마다 한 명에게만 |
+| 칭호 | 14종 · 최종 결과에서 부여 |
+| 결과 공유 | PNG 카드 생성 → 시스템 공유 시트 / 다운로드 |
+| 참가 | 6자리 코드 · 초대 링크 · QR |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 실행 스크립트
+
+```bash
+npm run dev        # 개발 서버
+npm run build      # 프로덕션 빌드
+npm run typecheck  # 타입 검사
+npm run simulate   # 게임 엔진 헤드리스 시뮬레이션 (39개 시나리오)
+npm run bots -- <ROOM_CODE> [봇수] [--auto-start]   # 실제 API 로 봇 참가시키기
+```
+
+`npm run simulate` 은 2~8명 · 모드 7종 · 이탈/새로고침/호스트 위임/중복 닉네임 등
+예외 상황까지 전부 돌려봅니다. 게임 로직을 고쳤다면 이걸 먼저 통과시키세요.
+
+혼자서 UI 를 테스트하려면 브라우저로 방을 만든 뒤:
+
+```bash
+npm run bots -- A7K92P 3
+```
+
+---
+
+## 아키텍처
+
+**서버가 유일한 권위입니다.** 클라이언트는 액션만 보내고 스냅샷을 렌더합니다.
+
+```
+클라이언트 ──POST /api/rooms/[code]/action──▶ reduce(state, action, now) ──▶ 저장 ──▶ 방송
+     ▲                                                                              │
+     └──────────── SSE 또는 Supabase Realtime ◀───────────────────────────────────────┘
+```
+
+- **상태 머신** — 라운드 시작 시 `Step[]` 을 통째로 계산합니다. 전이 = `stepIndex + 1`.
+  모드별 흐름이 데이터가 되므로 상태 머신 자체는 단순합니다. (`lib/game/steps.ts`)
+- **타이머** — 서버가 `phaseEndsAt`(epoch ms)을 정하고, 클라이언트는 클럭 오프셋을
+  중앙값으로 보정해서 씁니다. 모든 참가자가 **같은 숫자**를 봅니다. (`lib/client/clock.ts`)
+- **전이 경합 방지** — 모든 전이 액션은 단조 증가하는 `phaseToken` 을 동봉합니다.
+  토큰이 다르면 무시되므로 중복 전이가 발생하지 않습니다.
+- **타이머 구동 이중화** — ①메모리 모드에서는 서버 `setTimeout` ②모든 클라이언트의
+  워치독(만료 후 `TIMEOUT` 전송). 둘 다 멱등이라 어느 쪽이 죽어도 게임이 멈추지 않습니다.
+
+### 폴더 구조
+
+```
+app/                라우트 + API
+  api/rooms/…       방 생성 · 스냅샷 · 액션 · 참가 · SSE 스트림
+  room/[code]/      게임 셸
+components/
+  ui/               shadcn 스타일 프리미티브
+  phases/           페이즈별 화면 (로비 ~ 최종 결과)
+  game/ room/       타이머 · 주제 카드 · 결과 · 공유 카드 등
+lib/
+  game/             types · machine · steps · scoring · events · missions
+                    titles · recommend · rng · avatars
+  data/topics/      카테고리별 주제 348개
+  server/           store(추상) · memory-store · supabase-store · hub(SSE) · room-service
+  client/           transport(SSE|Supabase) · room-store(zustand) · clock · sound · identity
+  ai/               topic-provider (DB | AI 스텁)
+supabase/schema.sql PostgreSQL 스키마
+scripts/            시뮬레이터 · 봇
+```
+
+### 저장소 어댑터
+
+`lib/server/store.ts` 가 환경 변수를 보고 자동으로 고릅니다.
+
+| 조건 | 저장소 | 실시간 | 용도 |
+|---|---|---|---|
+| 환경 변수 없음 | 인메모리 | SSE | 로컬 개발 · 같은 와이파이 |
+| `NEXT_PUBLIC_SUPABASE_URL` 있음 | Supabase Postgres | Supabase Realtime | 프로덕션 배포 |
+
+---
+
+## 배포
+
+서버리스 환경(Vercel / Cloudflare)에는 **인메모리 저장소가 통하지 않습니다.**
+요청마다 다른 인스턴스가 뜨기 때문에 방이 공유되지 않습니다. Supabase 를 먼저 붙이세요.
+
+### 1단계 — Supabase 준비 (공통, 5분)
+
+1. [supabase.com](https://supabase.com) 에서 프로젝트 생성
+2. **SQL Editor** 에 [`supabase/schema.sql`](supabase/schema.sql) 전체를 붙여넣고 Run
+3. **Project Settings → API** 에서 키 3개를 복사
+
+```bash
+cp .env.example .env.local
+# NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY 채우기
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` 는 서버 전용입니다. `NEXT_PUBLIC_` 접두사를 붙이지 마세요.
+
+### 2단계 — 배포
+
+<details open>
+<summary><b>Vercel</b> (권장 · 가장 단순)</summary>
+
+```bash
+npx vercel
+npx vercel --prod
+```
+
+또는 GitHub 저장소를 Vercel 에 연결하면 push 마다 자동 배포됩니다.
+**Project Settings → Environment Variables** 에 위 3개를 넣으세요.
+</details>
+
+<details>
+<summary><b>Cloudflare Workers</b> (OpenNext 어댑터)</summary>
+
+```bash
+npx wrangler login
+
+# NEXT_PUBLIC_* 는 빌드 시점에 인라인되므로 .env.local 에 있어야 한다
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+
+npm run preview:cf   # 로컬에서 워커 런타임으로 미리보기
+npm run deploy:cf    # 배포
+```
+
+`wrangler.jsonc` 의 `name` 이 워커 이름이자 기본 도메인이 됩니다
+(`debatenight.<계정>.workers.dev`). 커스텀 도메인은 대시보드에서 연결하세요.
+</details>
+
+### 3단계 — 친구 초대
+
+배포하면 초대 링크가 그대로 실제 도메인을 가리킵니다.
+
+```
+https://<내 도메인>/room/A7K92P
+```
+
+- **초대 링크** 버튼 → 카톡/메시지로 바로 공유 (모바일에서는 시스템 공유 시트)
+- **QR** 버튼 → 화면에 띄우면 친구가 카메라로 찍고 바로 입장
+- 링크로 들어오면 닉네임만 입력하고 끝
+
+---
+
+## 예외 처리
+
+다음 상황에서도 게임이 멈추지 않습니다. 전부 `npm run simulate` 로 검증합니다.
+
+- 새로고침 / 브라우저 종료 → 같은 기기면 점수와 자리를 유지한 채 복귀
+- 네트워크 단절 → 지수 백오프로 재연결, 서버 상태를 다시 받아옴
+- 발언자가 나감 → 기다리지 않고 즉시 다음 순서
+- 방장이 나감 → 다음 접속자에게 자동 위임
+- 아무도 선택/투표를 안 함 → 시간 만료 시 자동으로 채우고 진행
+- 게임 중 입장 → 다음 라운드부터 참여 (현재 라운드 순서는 건드리지 않음)
+- 중복 닉네임 → 자동으로 번호를 붙여 구분
+- 없는 방 코드 / 가득 찬 방 / 끝난 방 → 각각 안내 화면
+
+---
+
+## AI 주제 생성
+
+`lib/ai/topic-provider.ts` 가 제공자를 추상화합니다.
+기본값은 내장 DB 이고, `TOPIC_AI_ENDPOINT` + `TOPIC_AI_KEY` 를 넣으면 AI 로 전환됩니다.
+
+```
+POST /api/topics/generate
+{ "prompt": "미국 여행 중인 20대 대학생 4명이 호텔에서 할 토론 주제 10개", "count": 10 }
+```
+
+응답 형식: `topic · category · difficulty · intensity · mode · optionA · optionB · followUpQuestions`
+
+---
+
+## 만들 때 세운 원칙
+
+- 토론보다 재미가 먼저다. 정답이 있는 주제는 넣지 않는다.
+- 한 라운드가 길어지지 않게 한다 (6명 이상이면 최종 주장을 공동 마무리로 줄인다).
+- 점수판으로 스트레스 주지 않는다. 순위보다 칭호를 크게 보여준다.
+- 모바일 세로, 한 손 조작. 큰 버튼, 큰 타이머, 최소 입력.
+- 어떤 화면에서도 "지금 뭘 해야 하지?" 라는 생각이 들지 않게 한다.
+
+CHAOS 카테고리는 수위가 있지만, 불법 · 혐오 · 성적 강압 · 위험 행위를 조장하는
+질문은 넣지 않았습니다.
