@@ -3,7 +3,7 @@ import type {
   RoomState, Round, Stance, Step, Topic,
 } from "./types";
 import { DEFAULT_SETTINGS, EMPTY_STATS, MODE_META } from "./types";
-import { hashString, mulberry32, pick, shuffle, type Rand } from "./rng";
+import { hashString, mulberry32, pick, type Rand } from "./rng";
 import { activePlayers, buildBody, buildHead, hasBody, makeOrder, assignStances, topPicked } from "./steps";
 import { rollEvent, timeMultiplier } from "./events";
 import { rollMission } from "./missions";

@@ -1,17 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Check, Copy, QrCode, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useOrigin } from "@/lib/client/identity";
 
 export function useRoomUrl(code: string) {
-  const [url, setUrl] = useState("");
-  useEffect(() => {
-    if (typeof window !== "undefined") setUrl(`${window.location.origin}/room/${code}`);
-  }, [code]);
-  return url;
+  const origin = useOrigin();
+  return origin ? `${origin}/room/${code}` : "";
 }
 
 export async function copyText(text: string) {

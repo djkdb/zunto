@@ -1,4 +1,5 @@
 "use client";
+import { useSyncExternalStore } from "react";
 
 /**
  * 파일 없이 WebAudio 로 만든 아주 얇은 사운드 레이어.
@@ -11,19 +12,38 @@ export type Sfx =
 const KEY = "dn:sound";
 let ctx: AudioContext | null = null;
 let enabled = true;
-let master = 0.22;
+const master = 0.22;
+
+const listeners = new Set<() => void>();
+let loaded = false;
 
 export function isSoundEnabled() {
-  if (typeof window === "undefined") return false;
-  const raw = localStorage.getItem(KEY);
-  enabled = raw === null ? true : raw === "1";
+  if (typeof window === "undefined") return true;
+  if (!loaded) {
+    const raw = localStorage.getItem(KEY);
+    enabled = raw === null ? true : raw === "1";
+    loaded = true;
+  }
   return enabled;
 }
 
 export function setSoundEnabled(on: boolean) {
+  if (enabled === on && loaded) return;
   enabled = on;
+  loaded = true;
   if (typeof window !== "undefined") localStorage.setItem(KEY, on ? "1" : "0");
   if (on) void unlock();
+  for (const fn of listeners) fn();
+}
+
+function subscribeSound(fn: () => void) {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
+}
+
+/** 렌더 중에 안전하게 읽는 훅 */
+export function useSoundEnabled(): boolean {
+  return useSyncExternalStore(subscribeSound, isSoundEnabled, () => true);
 }
 
 /** 첫 사용자 제스처에서 호출해야 iOS 에서 소리가 난다 */

@@ -78,9 +78,9 @@ export function ShareCard({ state, summary }: { state: RoomState; summary: Final
         </div>
 
         <div className="mt-1 flex gap-3 text-[0.72rem] font-bold" style={{ color: "#7C819B" }}>
-          <span>{summary.standings.length} PLAYERS</span>
+          <span>{summary.standings.length} PLAYER{summary.standings.length === 1 ? "" : "S"}</span>
           <span>·</span>
-          <span>{summary.totalRounds} ROUNDS</span>
+          <span>{summary.totalRounds} ROUND{summary.totalRounds === 1 ? "" : "S"}</span>
           <span>·</span>
           <span>{Math.max(1, Math.round(summary.durationMs / 60000))} MIN</span>
         </div>

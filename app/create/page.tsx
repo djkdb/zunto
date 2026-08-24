@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -12,23 +12,24 @@ import {
   CATEGORIES, CATEGORY_META, DEFAULT_SETTINGS, VIBES, VIBE_META,
   type Category, type RoomSettings, type Vibe,
 } from "@/lib/game/types";
-import { loadIdentity, rememberRoom, saveIdentity } from "@/lib/client/identity";
+import { rememberRoom, saveIdentity, useIdentity } from "@/lib/client/identity";
 import { unlock } from "@/lib/client/sound";
 import { cn } from "@/lib/utils";
 
 export default function CreatePage() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [nickname, setNickname] = useState("");
-  const [avatar, setAvatar] = useState("🦊");
+  const identity = useIdentity();
+  // null = 아직 안 건드림 → 저장된 값을 그대로 보여준다
+  const [draftNickname, setDraftNickname] = useState<string | null>(null);
+  const [draftAvatar, setDraftAvatar] = useState<string | null>(null);
   const [advanced, setAdvanced] = useState(false);
   const [s, setS] = useState<RoomSettings>({ ...DEFAULT_SETTINGS });
 
-  useEffect(() => {
-    const id = loadIdentity();
-    setNickname(id.nickname);
-    if (id.avatar) setAvatar(id.avatar);
-  }, []);
+  const nickname = draftNickname ?? identity.nickname;
+  const avatar = draftAvatar ?? identity.avatar;
+  const setNickname = setDraftNickname;
+  const setAvatar = setDraftAvatar;
 
   const set = <K extends keyof RoomSettings>(k: K, v: RoomSettings[K]) =>
     setS((prev) => ({ ...prev, [k]: v }));
@@ -46,8 +47,7 @@ export default function CreatePage() {
     setBusy(true);
     void unlock();
     try {
-      const id = loadIdentity();
-      saveIdentity({ nickname: nick, avatar });
+      const id = saveIdentity({ nickname: nick, avatar });
       const res = await fetch("/api/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

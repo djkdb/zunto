@@ -6,22 +6,24 @@ import { cn } from "@/lib/utils";
 
 /** 서버 기준 종료 시각으로만 계산 — 모든 참가자가 같은 숫자를 본다 */
 export function useRemaining(endsAt: number | null, totalMs: number) {
-  const [ms, setMs] = useState(() => (endsAt === null ? totalMs : Math.max(0, endsAt - serverClock.now())));
+  const [ticked, setTicked] = useState<number | null>(null);
   const raf = useRef<number>(0);
 
   useEffect(() => {
-    if (endsAt === null) { setMs(totalMs); return; }
+    if (endsAt === null) return;
     let alive = true;
     const loop = () => {
       if (!alive) return;
-      setMs(Math.max(0, endsAt - serverClock.now()));
+      setTicked(Math.max(0, endsAt - serverClock.now()));
       raf.current = requestAnimationFrame(loop);
     };
     raf.current = requestAnimationFrame(loop);
     return () => { alive = false; cancelAnimationFrame(raf.current); };
-  }, [endsAt, totalMs]);
+  }, [endsAt]);
 
-  return ms;
+  if (endsAt === null) return totalMs;
+  // 첫 프레임 전에는 직접 계산해서 깜빡임을 막는다
+  return ticked ?? Math.max(0, endsAt - serverClock.now());
 }
 
 export function Timer({

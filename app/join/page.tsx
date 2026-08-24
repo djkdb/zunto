@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/segmented";
 import { AvatarPicker } from "@/components/room/avatar-picker";
-import { loadIdentity, rememberRoom, saveIdentity } from "@/lib/client/identity";
+import { rememberRoom, saveIdentity, useIdentity } from "@/lib/client/identity";
 import { coerceCode, isValidCode } from "@/lib/server/codes";
 import { unlock } from "@/lib/client/sound";
 import { CodeInput } from "@/components/room/code-input";
@@ -16,19 +16,20 @@ import { CodeInput } from "@/components/room/code-input";
 function JoinInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const [code, setCode] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [avatar, setAvatar] = useState("🐻");
+  const identity = useIdentity();
+  const [draftCode, setDraftCode] = useState<string | null>(null);
+  const [draftNickname, setDraftNickname] = useState<string | null>(null);
+  const [draftAvatar, setDraftAvatar] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const nickRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const id = loadIdentity();
-    setNickname(id.nickname);
-    if (id.avatar) setAvatar(id.avatar);
-    const fromUrl = params.get("code");
-    if (fromUrl) setCode(coerceCode(fromUrl));
-  }, [params]);
+  // 링크로 들어오면 코드가 자동으로 채워진다
+  const code = draftCode ?? coerceCode(params.get("code") ?? "");
+  const nickname = draftNickname ?? identity.nickname;
+  const avatar = draftAvatar ?? identity.avatar;
+  const setCode = setDraftCode;
+  const setNickname = setDraftNickname;
+  const setAvatar = setDraftAvatar;
 
   async function join() {
     const c = coerceCode(code);
@@ -39,8 +40,7 @@ function JoinInner() {
     setBusy(true);
     void unlock();
     try {
-      const id = loadIdentity();
-      saveIdentity({ nickname: nick, avatar });
+      const id = saveIdentity({ nickname: nick, avatar });
       const res = await fetch(`/api/rooms/${c}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Dices, Sparkles } from "lucide-react";
@@ -9,20 +9,18 @@ import { TopicCard } from "@/components/game/topic-card";
 import { TOPICS_BY_CATEGORY, ALL_TOPICS } from "@/lib/data/topics";
 import { CATEGORIES, CATEGORY_META, type Category, type Topic } from "@/lib/game/types";
 import { mulberry32, shuffle } from "@/lib/game/rng";
+import { rerollSeed, useIsClient, useRandomSeed } from "@/lib/client/hooks";
 import { cn } from "@/lib/utils";
 
 function TopicsInner() {
   const params = useSearchParams();
-  const [category, setCategory] = useState<Category | "ALL">("ALL");
-  const [seed, setSeed] = useState(1);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const c = params.get("category") as Category | null;
-    if (c && CATEGORIES.includes(c)) setCategory(c);
-    setSeed(Math.floor(Math.random() * 1e9));
-    setMounted(true);
-  }, [params]);
+  const fromUrl = params.get("category") as Category | null;
+  const [draftCategory, setDraftCategory] = useState<Category | "ALL" | null>(null);
+  const category: Category | "ALL" =
+    draftCategory ?? (fromUrl && CATEGORIES.includes(fromUrl) ? fromUrl : "ALL");
+  const setCategory = setDraftCategory;
+  const seed = useRandomSeed();
+  const mounted = useIsClient();
 
   const pool = useMemo(
     () => (category === "ALL" ? ALL_TOPICS : TOPICS_BY_CATEGORY[category]),
@@ -34,7 +32,7 @@ function TopicsInner() {
     return shuffle(pool, mulberry32(seed)).slice(0, 10) as Topic[];
   }, [pool, seed, mounted]);
 
-  const reroll = useCallback(() => setSeed(Math.floor(Math.random() * 1e9)), []);
+  const reroll = () => rerollSeed();
 
   return (
     <PageShell title="오늘의 랜덤 주제" back="/">

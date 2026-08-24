@@ -6,25 +6,23 @@ import { cn } from "@/lib/utils";
 
 /** 이벤트가 발동되면 전체 화면으로 한 번 크게 보여주고, 이후엔 얇은 배너로 남는다 */
 export function EventOverlay({ event, phase }: { event?: RandomEvent; phase: string }) {
-  const [shown, setShown] = useState(false);
   const [dismissed, setDismissed] = useState<string | null>(null);
+  // 상태를 따로 두지 않고 지금 보여야 하는지를 그때그때 계산한다
+  const shown = Boolean(event) && event!.appliesFrom === phase && dismissed !== event!.code;
 
   useEffect(() => {
-    if (!event) return;
-    if (event.appliesFrom !== phase) return;
-    if (dismissed === event.code) return;
-    setShown(true);
+    if (!shown || !event) return;
     play("event");
-    const t = setTimeout(() => { setShown(false); setDismissed(event.code); }, 3600);
+    const t = setTimeout(() => setDismissed(event.code), 3600);
     return () => clearTimeout(t);
-  }, [event, phase, dismissed]);
+  }, [shown, event]);
 
   if (!event || !shown) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 grid animate-fade place-items-center bg-night-950/92 px-8 backdrop-blur-md"
-      onClick={() => { setShown(false); setDismissed(event.code); }}
+      onClick={() => setDismissed(event.code)}
     >
       <div className="animate-pop text-center">
         <div className="mb-4 text-[4.5rem] leading-none">{event.emoji}</div>

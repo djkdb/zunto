@@ -45,8 +45,8 @@ export function SpeechPhase({ state, playerId }: { state: RoomState; playerId: s
     if (announced.current === state.phaseToken) return;
     announced.current = state.phaseToken;
     play("turn");
-    if (isMyTurn && typeof navigator !== "undefined" && "vibrate" in navigator) {
-      try { navigator.vibrate?.(([60, 40, 60] as unknown) as number[]); } catch { /* 지원 안 함 */ }
+    if (isMyTurn && typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      try { navigator.vibrate([60, 40, 60]); } catch { /* 지원 안 하거나 사용자 제스처 전 */ }
     }
   }, [state.phaseToken, isMyTurn]);
 

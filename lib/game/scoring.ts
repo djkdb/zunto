@@ -2,7 +2,6 @@ import type {
   AwardCode, Player, Rating, Round, RoundResult, Stance,
 } from "./types";
 import { AWARD_META, AWARDS } from "./types";
-import { topPicked } from "./steps";
 
 const P = {
   WIN: 3,

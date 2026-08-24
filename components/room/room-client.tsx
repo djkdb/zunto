@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/
 import { Announcer } from "@/components/brand/announcer";
 import { Logo } from "@/components/brand/logo";
 import { AvatarPicker } from "@/components/room/avatar-picker";
+import { AVATARS } from "@/lib/game/avatars";
 import { TimerBar } from "@/components/game/timer";
 import { EventOverlay } from "@/components/game/event-banner";
 import { LobbyPhase } from "@/components/phases/lobby-phase";
@@ -28,24 +29,22 @@ import { RatingPhase } from "@/components/phases/rating-phase";
 import { ResultPhase } from "@/components/phases/result-phase";
 import { FinishedPhase } from "@/components/phases/finished-phase";
 import { useRoomStore } from "@/lib/client/room-store";
-import { loadIdentity, rememberRoom, saveIdentity } from "@/lib/client/identity";
-import { isSoundEnabled, setSoundEnabled, unlock } from "@/lib/client/sound";
+import { rememberRoom, saveIdentity, useIdentity } from "@/lib/client/identity";
+import { setSoundEnabled, unlock, useSoundEnabled } from "@/lib/client/sound";
 import { cn } from "@/lib/utils";
 
 export function RoomClient({ code }: { code: string }) {
   const router = useRouter();
-  const { state, status, connect, disconnect, send, error, setError } = useRoomStore();
-  const [playerId, setPlayerId] = useState("");
-  const [sound, setSound] = useState(true);
-  const wasIn = useRef(false);
+  const { state, status, connect, disconnect, error, setError, everJoined } = useRoomStore();
+  const identity = useIdentity();
+  const playerId = identity.playerId;
+  const sound = useSoundEnabled();
 
   useEffect(() => {
-    const id = loadIdentity();
-    setPlayerId(id.playerId);
-    setSound(isSoundEnabled());
-    connect(code, id.playerId);
+    if (!playerId) return;
+    connect(code, playerId);
     return () => disconnect();
-  }, [code, connect, disconnect]);
+  }, [code, playerId, connect, disconnect]);
 
   useEffect(() => {
     if (error) {
@@ -73,7 +72,6 @@ export function RoomClient({ code }: { code: string }) {
   }, [code, playerId]);
 
   const me = state?.players.find((p) => p.id === playerId);
-  useEffect(() => { if (me) wasIn.current = true; }, [me]);
 
   if (status === "gone") return <RoomGone code={code} />;
 
@@ -92,9 +90,9 @@ export function RoomClient({ code }: { code: string }) {
   }
 
   if (!me) {
-    return wasIn.current
+    return everJoined
       ? <RemovedFromRoom code={code} />
-      : <JoinGate code={code} state={state} onJoined={(id) => { setPlayerId(id); connect(code, id); }} />;
+      : <JoinGate code={code} state={state} onJoined={(id) => connect(code, id)} />;
   }
 
   const round = state.round;
@@ -130,7 +128,6 @@ export function RoomClient({ code }: { code: string }) {
           <button
             onClick={() => {
               const next = !sound;
-              setSound(next);
               setSoundEnabled(next);
               if (next) void unlock();
             }}
@@ -256,18 +253,21 @@ function JoinGate({
   state: RoomState;
   onJoined: (playerId: string) => void;
 }) {
-  const [nickname, setNickname] = useState("");
-  const [avatar, setAvatar] = useState("🐼");
+  const identity = useIdentity();
+  // null = 아직 안 건드림 → 저장된 값을 그대로 보여준다
+  const [draftNickname, setDraftNickname] = useState<string | null>(null);
+  const [draftAvatar, setDraftAvatar] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const taken = state.players.map((p) => p.avatar);
 
-  useEffect(() => {
-    const id = loadIdentity();
-    setNickname(id.nickname);
-    const free = ["🦊", "🐻", "🐼", "🐯", "🦁", "🐸", "🐨", "🐺"].find((a) => !taken.includes(a));
-    setAvatar(taken.includes(id.avatar) ? free ?? id.avatar : id.avatar);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const taken = state.players.map((p) => p.avatar);
+  const nickname = draftNickname ?? identity.nickname;
+  const avatar =
+    draftAvatar ??
+    (taken.includes(identity.avatar)
+      ? AVATARS.find((a) => !taken.includes(a)) ?? identity.avatar
+      : identity.avatar || AVATARS[0]);
+  const setNickname = setDraftNickname;
+  const setAvatar = setDraftAvatar;
 
   const full = state.players.length >= state.settings.maxPlayers;
   const finished = state.status === "FINISHED";
@@ -278,8 +278,7 @@ function JoinGate({
     setBusy(true);
     void unlock();
     try {
-      const id = loadIdentity();
-      saveIdentity({ nickname: nick, avatar });
+      const id = saveIdentity({ nickname: nick, avatar });
       const res = await fetch(`/api/rooms/${code}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

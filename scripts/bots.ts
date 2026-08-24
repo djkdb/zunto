@@ -63,6 +63,11 @@ async function main() {
 
     for (const b of bots) await act({ type: "PING", playerId: b.id });
 
+    // 실제 클라이언트와 동일한 워치독: 시간이 끝났으면 TIMEOUT 을 보낸다
+    if (s.phaseEndsAt !== null && Date.now() >= s.phaseEndsAt) {
+      await act({ type: "TIMEOUT", phaseToken: s.phaseToken });
+    }
+
     const mine = bots.filter((b) => s.players.some((p) => p.id === b.id));
     const ids = s.players.filter((p) => p.active && p.connected).map((p) => p.id);
     const step = s.round?.steps[s.round.stepIndex];

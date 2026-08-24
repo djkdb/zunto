@@ -15,6 +15,8 @@ interface RoomStoreState {
   playerId: string;
   /** 서버에 보냈지만 아직 반영 안 된 액션이 있는지 */
   pending: number;
+  /** 이 방에 한 번이라도 실제로 들어가 있었는가 (강퇴/퇴장 안내 구분용) */
+  everJoined: boolean;
 
   connect: (code: string, playerId: string) => void;
   disconnect: () => void;
@@ -36,6 +38,7 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
   error: null,
   playerId: "",
   pending: 0,
+  everJoined: false,
 
   setError: (e) => set({ error: e }),
 
@@ -44,13 +47,14 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
     const prev = get().state;
     // 오래된 스냅샷은 버린다
     if (prev && prev.code === state.code && state.updatedAt < prev.updatedAt && state.phaseToken < prev.phaseToken) return;
-    set({ state, error: null });
+    const me = state.players.some((p) => p.id === get().playerId);
+    set(me ? { state, error: null, everJoined: true } : { state, error: null });
   },
 
   connect: (code, playerId) => {
     if (get().code === code && teardown) return;
     teardown?.();
-    set({ code, playerId, status: "connecting", state: null, error: null });
+    set({ code, playerId, status: "connecting", state: null, error: null, everJoined: false });
 
     transport ??= createTransport();
     teardown = transport.connect(
@@ -95,7 +99,7 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
     heartbeat = null;
     watchdog = null;
     lastTimeoutToken = -1;
-    set({ code: null, state: null, status: "idle", pending: 0 });
+    set({ code: null, state: null, status: "idle", pending: 0, everJoined: false });
   },
 
   send: async (action) => {

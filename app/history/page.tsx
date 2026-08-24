@@ -1,20 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trash2, Trophy } from "lucide-react";
 import { PageShell } from "@/components/brand/page-shell";
 import { Button } from "@/components/ui/button";
-import { clearHistory, loadHistory, type HistoryEntry } from "@/lib/client/identity";
+import { clearHistory, useHistory } from "@/lib/client/identity";
+import { useIsClient } from "@/lib/client/hooks";
 import { titleOf } from "@/lib/game/titles";
 
 export default function HistoryPage() {
-  const [items, setItems] = useState<HistoryEntry[]>([]);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setItems(loadHistory());
-    setMounted(true);
-  }, []);
+  const items = useHistory();
+  const mounted = useIsClient();
 
   if (!mounted) {
     return <PageShell title="지난 토론 기록" back="/"><div className="h-40" /></PageShell>;
@@ -27,7 +22,7 @@ export default function HistoryPage() {
       right={
         items.length > 0 ? (
           <button
-            onClick={() => { clearHistory(); setItems([]); }}
+            onClick={() => clearHistory()}
             className="grid h-9 w-9 place-items-center rounded-full text-ink-faint transition-colors active:bg-night-800"
             aria-label="기록 지우기"
           >

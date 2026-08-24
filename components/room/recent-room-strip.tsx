@@ -1,15 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Clock3 } from "lucide-react";
-import { loadRecentRooms, type RecentRoom } from "@/lib/client/identity";
+import { useRecentRooms } from "@/lib/client/identity";
 
 export function RecentRoomStrip() {
-  const [rooms, setRooms] = useState<RecentRoom[]>([]);
-
-  useEffect(() => {
-    setRooms(loadRecentRooms().filter((r) => Date.now() - r.at < 1000 * 60 * 60 * 8));
-  }, []);
+  const rooms = useRecentRooms();
 
   if (!rooms.length) return null;
 
