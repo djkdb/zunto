@@ -32,9 +32,13 @@ export async function GET() {
     );
   }
 
+  // 상태 코드는 항상 200 — 워커 자체는 살아 있다.
+  // "여러 기기가 같이 놀 수 있는 설정인가" 는 ok 로 판단한다
+  // (로컬 개발에서는 인메모리가 정상이므로 5xx 를 돌려주면 오해를 부른다).
   return NextResponse.json(
     {
       ok: warnings.length === 0,
+      mode: supabase ? "production" : "local",
       store: store.kind,
       realtime,
       hasServiceRole,
@@ -42,6 +46,6 @@ export async function GET() {
       serverNow: Date.now(),
       warnings,
     },
-    { status: warnings.length ? 503 : 200 }
+    { status: 200 }
   );
 }
