@@ -26,6 +26,12 @@ function looksLikePersonQuestion(q: string) {
   return /사람|친구|누구|누가|멤버/.test(q) && /\?$/.test(q) && !/vs/i.test(q);
 }
 
+/**
+ * id 가 배열 인덱스에서 만들어진다 (`money-007` 처럼).
+ * 그래서 새 주제는 반드시 배열 끝에 붙여야 한다. 중간에 끼워넣거나 순서를 바꾸면
+ * 그 뒤 주제들의 id 가 전부 밀려서, 이미 저장된 기록의 usedTopicIds 가 엉뚱한
+ * 주제를 가리키게 된다. 주제를 빼야 한다면 지우지 말고 문장만 바꿔라.
+ */
 export function buildTopics(category: Category, prefix: string, seeds: Seed[]): Topic[] {
   return seeds.map((s, idx) => {
     const isBalance = Boolean(s.a && s.b);

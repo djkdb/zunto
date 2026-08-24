@@ -32,7 +32,7 @@ npm run dev
 | | |
 |---|---|
 | 토론 모드 | 7종 (밸런스 · 찬반 · 한 명 설득 · 지목 · 소수 의견 · 변론 게임 · 친구 평가) |
-| 주제 | 348개 · 9개 카테고리 (돈/연애/우정/인생/밸런스/여행/일/심연/카오스) |
+| 주제 | 403개 · 9개 카테고리 (돈/연애/우정/인생/밸런스/여행/일/심연/카오스) |
 | 추천 | 인원 · 분위기 · 시간대 · 라운드 · 직전 재미도를 반영한 가중치 추천 |
 | 랜덤 이벤트 | 6종 (악마의 변호인 · 더블 타임 · 한 문장 · 타겟 지정 · 침묵 · 주제 전환) |
 | 비밀 미션 | 15종 · 라운드마다 한 명에게만 |
@@ -95,7 +95,7 @@ components/
 lib/
   game/             types · machine · steps · scoring · events · missions
                     titles · recommend · rng · avatars
-  data/topics/      카테고리별 주제 348개
+  data/topics/      카테고리별 주제 403개
   server/           store(추상) · memory-store · supabase-store · hub(SSE) · room-service
   client/           transport(SSE|Supabase) · room-store(zustand) · clock · sound · identity
   ai/               topic-provider (DB | AI 스텁)
