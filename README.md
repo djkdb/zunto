@@ -121,16 +121,36 @@ scripts/            시뮬레이터 · 봇
 
 ### 1단계 — Supabase 준비 (공통, 5분)
 
-1. [supabase.com](https://supabase.com) 에서 프로젝트 생성
-2. **SQL Editor** 에 [`supabase/schema.sql`](supabase/schema.sql) 전체를 붙여넣고 Run
-3. **Project Settings → API** 에서 키 3개를 복사
+1. [supabase.com](https://supabase.com) → **New project** (Free 플랜으로 충분합니다).
+   Region 은 친구들이 있는 곳과 가까운 쪽 — 한국이면 `Northeast Asia (Seoul)`.
+2. 왼쪽 **SQL Editor → New query** 에 [`supabase/schema.sql`](supabase/schema.sql)
+   **전체**를 붙여넣고 **Run**. `Success. No rows returned` 이면 정상입니다.
+   이 스크립트가 테이블 · 인덱스 · RLS 정책 · Realtime publication 까지 전부 만듭니다.
+3. **Database → Replication** 에서 `supabase_realtime` 에 `rooms` 가 들어가 있는지 확인.
+   (2번 스크립트가 자동으로 넣지만, 프로젝트에 따라 수동 추가가 필요할 수 있습니다.)
+4. **Project Settings → API Keys** 에서 값 3개를 복사합니다.
+
+| 이름 | 어디서 | 쓰이는 곳 |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL | 브라우저 + 서버 (빌드 시점 인라인) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon / public | 브라우저 Realtime 구독 |
+| `SUPABASE_SERVICE_ROLE_KEY` | service_role (**secret**) | 서버 전용 쓰기 |
 
 ```bash
 cp .env.example .env.local
-# NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY 채우기
+# 위 3개를 채운다
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` 는 서버 전용입니다. `NEXT_PUBLIC_` 접두사를 붙이지 마세요.
+`SUPABASE_SERVICE_ROLE_KEY` 는 서버 전용입니다. `NEXT_PUBLIC_` 접두사를 붙이지 마세요 —
+붙이면 브라우저 번들에 들어가서 누구나 DB 를 쓸 수 있게 됩니다.
+
+제대로 붙었는지는 로컬에서 바로 확인할 수 있습니다.
+
+```bash
+npm run dev
+curl localhost:3000/api/health
+# { "ok": true, "store": "supabase", "realtime": "supabase", "hasServiceRole": true }
+```
 
 ### 2단계 — 배포
 
@@ -149,18 +169,75 @@ npx vercel --prod
 <details>
 <summary><b>Cloudflare Workers</b> (OpenNext 어댑터)</summary>
 
-```bash
-npx wrangler login
+`NEXT_PUBLIC_*` 는 **빌드 시점에 번들로 인라인**됩니다. `npm run deploy:cf` 는 빌드까지 하므로
+배포를 실행하는 머신(또는 CI)에 `.env.local` 이나 환경 변수로 두 값이 반드시 있어야 합니다.
 
-# NEXT_PUBLIC_* 는 빌드 시점에 인라인되므로 .env.local 에 있어야 한다
+```bash
+# 0) 인증 — 브라우저 로그인
+npx wrangler login
+#    CI/원격이라 브라우저를 못 열면 API 토큰을 쓴다
+#    export CLOUDFLARE_API_TOKEN=...   CLOUDFLARE_ACCOUNT_ID=...
+
+# 1) 첫 배포 (워커가 만들어진다)
+npm run deploy:cf
+
+# 2) 서버 전용 키를 시크릿으로 (워커가 있어야 넣을 수 있다)
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 
-npm run preview:cf   # 로컬에서 워커 런타임으로 미리보기
-npm run deploy:cf    # 배포
+# 3) 시크릿을 반영해서 한 번 더
+npm run deploy:cf
+```
+
+API 토큰을 쓴다면 다음 권한이 필요합니다.
+
+| 범위 | 권한 |
+|---|---|
+| Account | Workers Scripts — **Edit** |
+| Account | Account Settings — **Read** |
+| User | User Details — **Read** |
+| Zone | Workers Routes — Edit *(커스텀 도메인을 붙일 때만)* |
+
+**배포 직후 반드시 확인하세요.**
+
+```bash
+curl https://debatenight.<계정>.workers.dev/api/health
+# { "ok": true, "store": "supabase", "realtime": "supabase", "hasServiceRole": true }
+```
+
+`store` 가 `memory` 로 나오면 Supabase 가 안 붙은 것입니다. 화면은 멀쩡히 뜨지만
+**요청마다 다른 인스턴스가 뜨기 때문에 친구가 코드를 넣으면 "그런 방이 없습니다" 가 뜹니다.**
+`hasServiceRole` 이 `false` 면 RLS 때문에 방 생성이 실패합니다.
+
+로컬에서 워커 런타임 그대로 미리 보려면:
+
+```bash
+npm run preview:cf
 ```
 
 `wrangler.jsonc` 의 `name` 이 워커 이름이자 기본 도메인이 됩니다
 (`debatenight.<계정>.workers.dev`). 커스텀 도메인은 대시보드에서 연결하세요.
+</details>
+
+<details>
+<summary><b>GitHub Actions</b> (로컬에 아무것도 깔지 않고 배포)</summary>
+
+[`.github/workflows/deploy-cloudflare.yml`](.github/workflows/deploy-cloudflare.yml) 이 들어 있습니다.
+저장소 **Settings → Secrets and variables → Actions** 에 5개를 넣고,
+**Actions** 탭에서 *Deploy to Cloudflare Workers → Run workflow* 를 누르면 끝입니다.
+
+| 시크릿 | 값 |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | 위 표의 권한을 가진 토큰 |
+| `CLOUDFLARE_ACCOUNT_ID` | 대시보드 Account ID |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon 키 |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role 키 |
+
+워크플로가 하는 일: 타입 검사 → 린트 → `npm run simulate` (39개 시나리오) →
+빌드 & 배포 → service_role 키를 워커 시크릿으로 주입 → `/api/health` 로 배포 확인.
+어느 하나라도 실패하면 빨간불이 뜹니다.
+
+기본은 수동 실행입니다. push 마다 자동 배포하려면 워크플로 안의 `push:` 트리거 주석을 푸세요.
 </details>
 
 ### 3단계 — 친구 초대

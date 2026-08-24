@@ -1,0 +1,101 @@
+# Cloudflare Workers 배포 (OpenNext 어댑터)
+#
+# 준비물 — 저장소 Settings → Secrets and variables → Actions → New repository secret
+#
+#   CLOUDFLARE_API_TOKEN            Workers Scripts:Edit + Account Settings:Read + User Details:Read
+#   CLOUDFLARE_ACCOUNT_ID           대시보드 우측 하단 Account ID
+#   NEXT_PUBLIC_SUPABASE_URL        빌드 시점에 번들로 인라인된다
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY   빌드 시점에 번들로 인라인된다
+#   SUPABASE_SERVICE_ROLE_KEY       배포 후 워커 시크릿으로 들어간다 (서버 전용)
+#
+# 실행 — Actions 탭 → "Deploy to Cloudflare Workers" → Run workflow
+# push 마다 자동 배포하고 싶으면 아래 push 트리거의 주석을 푸세요.
+
+name: Deploy to Cloudflare Workers
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 필요한 시크릿이 다 있는지 먼저 확인
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          missing=""
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID \
+                   NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY \
+                   SUPABASE_SERVICE_ROLE_KEY; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::저장소 시크릿이 없습니다:$missing"
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: 게임 엔진 시뮬레이션 (39개 시나리오)
+        run: npm run simulate
+
+      - name: 빌드 & 배포
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # NEXT_PUBLIC_* 는 빌드 시점에 번들에 박히므로 여기 있어야 한다
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          set -o pipefail
+          npm run deploy:cf 2>&1 | tee deploy.log
+
+      - name: 서버 전용 키를 워커 시크릿으로 (배포 후에만 넣을 수 있다)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+
+      - name: 배포된 워커가 Supabase 에 제대로 물렸는지 확인
+        run: |
+          # wrangler 가 출력한 실제 배포 URL 을 쓴다 (workers.dev 주소에는 계정 서브도메인이 들어간다)
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          if [ -z "$url" ]; then
+            echo "::warning::배포 로그에서 workers.dev 주소를 찾지 못했습니다. 확인을 건너뜁니다."
+            exit 0
+          fi
+          echo "확인: $url/api/health"
+          for i in 1 2 3 4 5 6; do
+            body=$(curl -sS --max-time 20 "$url/api/health" || true)
+            echo "$body"
+            case "$body" in
+              *'"ok":true'*)
+                echo "::notice::배포 확인 완료 — $url"
+                exit 0 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::$url/api/health 가 ok:true 를 돌려주지 않았습니다. 위 응답의 warnings 를 확인하세요."
+          exit 1
