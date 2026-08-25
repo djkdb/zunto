@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "debatenight",
+  "name": "zunto",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -11,7 +11,12 @@
   "observability": {
     "enabled": true
   }
-  // 환경 변수는 대시보드나 `wrangler secret put` 으로 넣는다:
-  //   NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY 는 빌드 시점에 필요하므로
-  //   .env.local 또는 CI 환경 변수로 주고, SUPABASE_SERVICE_ROLE_KEY 는 secret 으로 넣는다.
+  // 환경 변수를 "어디에" 넣느냐가 중요하다:
+  //   NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY
+  //     → 빌드 시점에 번들로 박힌다. .env.local · CI · 대시보드의 "빌드 변수" 에 넣는다.
+  //       런타임 변수로만 넣으면 브라우저가 값을 못 받아서 실시간 연결이 SSE 로 떨어진다.
+  //   SUPABASE_SERVICE_ROLE_KEY
+  //     → 런타임에 읽는다. 대시보드의 "Variables and Secrets"(런타임) 에 Secret 으로,
+  //       또는 `wrangler secret put SUPABASE_SERVICE_ROLE_KEY`.
+  //       빌드 변수에 넣으면 번들에 안 박혀서 런타임에 없는 것과 같다.
 }

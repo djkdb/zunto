@@ -205,8 +205,18 @@ npx vercel --prod
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **빌드** 환경 변수 | 〃 |
    | `SUPABASE_SERVICE_ROLE_KEY` | **런타임 Secret** | 서버 전용. 번들에 들어가면 안 된다 |
 
-   `NEXT_PUBLIC_*` 는 빌드 변수에만 넣으면 됩니다. 빌드 때 브라우저 번들과 서버 번들
-   양쪽에 값이 박히기 때문에 런타임 변수로 또 넣을 필요가 없습니다.
+   대시보드에 **변수 넣는 칸이 두 군데** 있습니다. 헷갈리기 쉬우니 확인하세요.
+
+   - **워커 → Settings → Variables and Secrets** … 런타임. 워커가 돌 때 읽는다.
+   - **워커 → Settings → Builds → 변수 및 암호** … 빌드. 빌드하는 동안에만 존재한다.
+
+   `NEXT_PUBLIC_*` 는 **빌드** 쪽에만 넣으면 됩니다. 빌드 때 브라우저 번들과 서버 번들
+   양쪽에 값이 박히므로 런타임에 또 넣을 필요가 없습니다.
+
+   `SUPABASE_SERVICE_ROLE_KEY` 는 **런타임** 쪽에 Secret 으로 넣어야 합니다.
+   Next.js 는 `NEXT_PUBLIC_` 이 붙은 것만 번들에 박기 때문에, 이 키를 빌드 변수에
+   넣으면 빌드가 끝나는 순간 사라집니다 — 런타임에 없는 것과 같습니다
+   (`/api/health` 가 `hasServiceRole: false` 로 알려줍니다).
 
 4. 첫 배포가 끝나면 **워커 → Settings → Variables and Secrets** 에서
    `SUPABASE_SERVICE_ROLE_KEY` 를 **Secret** 으로 추가하고 한 번 더 배포합니다.
