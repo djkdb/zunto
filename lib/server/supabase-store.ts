@@ -29,12 +29,14 @@ export class SupabaseStore implements RoomStore {
     });
   }
 
-  /** 권한 때문에 실패한 것이라면 힌트를 붙여준다 */
+  /** 원인을 짐작할 수 있으면 힌트를, 아니면 어디를 보라고 알려준다 */
   private fail(message: string): never {
     const permissionish = /row-level security|permission|policy|JWT/i.test(message);
-    throw new Error(
-      permissionish && !this.hasServiceRole ? `${message} — ${RLS_HINT}` : message
-    );
+    if (permissionish && !this.hasServiceRole) {
+      throw new Error(`${message} — ${RLS_HINT}`);
+    }
+    // 화면에 원인 모를 에러만 뜨면 손쓸 방법이 없다. 진단 엔드포인트로 보낸다.
+    throw new Error(`${message} (원인은 /api/health 에서 확인할 수 있습니다)`);
   }
 
   async create(state: RoomState) {
