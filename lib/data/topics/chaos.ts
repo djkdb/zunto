@@ -49,6 +49,7 @@ const seeds: Seed[] = [
   { q: "여기서 지금 집에 가고 싶어 할 것 같은 사람은?", d: 1, i: 3, min: 3 },
   { q: "지금 이 자리에 없는 사람 얘기를 하는 건 자연스러운 일이다", d: 3, i: 4 },
   { q: "나는 여기 있는 사람들에게 좋은 친구다", d: 3, i: 4 },
+  { q: "연예인이면 사생활이 알려지는 것도 감수해야 한다", d: 3, i: 3 },
 ];
 
 export const CHAOS_TOPICS = buildTopics("CHAOS", "chaos", seeds);
