@@ -1,5 +1,6 @@
 "use client";
 import type { RoomState } from "@/lib/game/types";
+import { normalizeSupabaseUrl } from "@/lib/supabase-url";
 
 export interface Snapshot { state: RoomState; serverNow: number }
 export type OnSnapshot = (snap: Snapshot) => void;
@@ -10,8 +11,8 @@ export interface Transport {
   connect(code: string, onSnapshot: OnSnapshot, onStatus: OnStatus, playerId?: string): () => void;
 }
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_URL = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+const SUPABASE_ANON = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
 
 /** 방이 사라졌는지(404) 한 번 확인한다. 판단이 안 서면 false = 재연결 시도. */
 async function probeGone(code: string): Promise<boolean> {
@@ -90,7 +91,7 @@ class SupabaseTransport implements Transport {
     (async () => {
       const { createClient } = await import("@supabase/supabase-js");
       if (stopped) return;
-      const client = createClient(SUPABASE_URL!, SUPABASE_ANON!, {
+      const client = createClient(SUPABASE_URL, SUPABASE_ANON, {
         auth: { persistSession: false },
         realtime: { params: { eventsPerSecond: 20 } },
       });

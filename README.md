@@ -141,7 +141,7 @@ scripts/            시뮬레이터 · 봇
 
 | 이름 | 어디서 | 쓰이는 곳 |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Project URL | 브라우저 + 서버 (빌드 시점 인라인) |
+| `NEXT_PUBLIC_SUPABASE_URL` | **Project URL** | 브라우저 + 서버 (빌드 시점 인라인) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon / public | 브라우저 Realtime 구독 |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role (**secret**) | 서버 전용 쓰기 |
 
@@ -152,6 +152,12 @@ cp .env.example .env.local
 
 `SUPABASE_SERVICE_ROLE_KEY` 는 서버 전용입니다. `NEXT_PUBLIC_` 접두사를 붙이지 마세요 —
 붙이면 브라우저 번들에 들어가서 누구나 DB 를 쓸 수 있게 됩니다.
+
+> **URL 은 `Project URL` 을 복사하세요.** 대시보드가 바로 옆에 보여주는
+> `RESTful endpoint` (`https://xxxx.supabase.co/rest/v1/`) 를 넣으면
+> 클라이언트가 `/rest/v1` 을 한 번 더 붙여서 `PGRST125 Invalid path specified in
+> request URL` 로 방 생성이 실패합니다. 앱이 알아서 잘라내긴 하지만
+> `/api/health` 가 경고를 띄우니 값을 바로잡아 두세요.
 
 제대로 붙었는지는 로컬에서 바로 확인할 수 있습니다.
 

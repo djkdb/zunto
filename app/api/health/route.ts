@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/lib/server/store";
 import { TOPIC_COUNT } from "@/lib/data/topics";
+import { explainSupabaseUrl, normalizeSupabaseUrl } from "@/lib/supabase-url";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,7 +80,14 @@ export async function GET() {
   }
 
   /* ── URL 모양 점검 ─────────────────────────────────────────────── */
-  const url: Record<string, unknown> = { raw: rawUrl, length: rawUrl.length };
+  const normalizedUrl = normalizeSupabaseUrl(rawUrl);
+  const url: Record<string, unknown> = {
+    raw: rawUrl,
+    normalized: normalizedUrl,
+    length: rawUrl.length,
+  };
+  const explanation = explainSupabaseUrl(rawUrl);
+  if (explanation) warnings.push(`NEXT_PUBLIC_SUPABASE_URL — ${explanation}`);
   const odd = describeOddChars(rawUrl);
   if (odd) {
     url.oddChars = odd;
@@ -90,12 +98,12 @@ export async function GET() {
   }
   if (rawUrl) {
     try {
-      const u = new URL(rawUrl.trim());
+      const u = new URL(normalizedUrl);
       url.origin = u.origin;
       url.pathname = u.pathname;
       if (u.pathname !== "/" && u.pathname !== "") {
         warnings.push(
-          `NEXT_PUBLIC_SUPABASE_URL 에 경로가 붙어 있습니다 ("${u.pathname}"). ` +
+          `NEXT_PUBLIC_SUPABASE_URL 에 모르는 경로가 붙어 있습니다 ("${u.pathname}"). ` +
             "프로젝트 주소만 넣어야 합니다 — 예: https://xxxx.supabase.co"
         );
       }
@@ -113,7 +121,7 @@ export async function GET() {
   /* ── 실제로 닿는지 ────────────────────────────────────────────── */
   let reachable: Awaited<ReturnType<typeof probeSupabase>> | null = null;
   if (supabase && rawUrl) {
-    reachable = await probeSupabase(rawUrl.trim(), (serviceRole || anon).trim());
+    reachable = await probeSupabase(normalizedUrl, (serviceRole || anon).trim());
     if (!reachable.ok) {
       warnings.push(
         `Supabase 에 요청이 실패했습니다 (HTTP ${reachable.status}). ` +
