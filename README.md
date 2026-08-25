@@ -163,8 +163,8 @@ curl localhost:3000/api/health
 
 ### 2단계 — 배포
 
-<details open>
-<summary><b>Vercel</b> (권장 · 가장 단순)</summary>
+<details>
+<summary><b>Vercel</b></summary>
 
 ```bash
 npx vercel
@@ -175,8 +175,40 @@ npx vercel --prod
 **Project Settings → Environment Variables** 에 위 3개를 넣으세요.
 </details>
 
+<details open>
+<summary><b>Cloudflare 대시보드에서 바로</b> (Workers Builds · 제일 간단)</summary>
+
+로컬에 아무것도 깔지 않고, API 토큰도 만들 필요 없이 Cloudflare 가 직접 GitHub 를
+읽어서 빌드·배포합니다. push 하면 자동으로 다시 배포됩니다.
+
+1. **Workers & Pages → Create → Import a repository** 에서 GitHub 계정을 연결하고
+   이 저장소를 고릅니다.
+2. 빌드 설정을 이렇게 넣습니다.
+
+   | 항목 | 값 |
+   |---|---|
+   | Build command | `npm run build:cf` |
+   | Deploy command | `npx wrangler deploy` |
+   | Production branch | 배포할 브랜치 (보통 `main`) |
+
+3. **빌드용 환경 변수** 두 개를 넣습니다. `NEXT_PUBLIC_*` 는 런타임이 아니라
+   **빌드 시점에 번들로 박히기 때문에**, 반드시 빌드 환경 변수여야 합니다.
+
+   ```
+   NEXT_PUBLIC_SUPABASE_URL
+   NEXT_PUBLIC_SUPABASE_ANON_KEY
+   ```
+
+4. 첫 배포가 끝나면 **워커 → Settings → Variables and Secrets** 에서
+   `SUPABASE_SERVICE_ROLE_KEY` 를 **Secret** 으로 추가하고 한 번 더 배포합니다.
+   (서버 전용 키라 빌드 변수가 아니라 시크릿으로 넣습니다.)
+
+5. `https://<워커>.<계정>.workers.dev/api/health` 로 확인합니다.
+
+</details>
+
 <details>
-<summary><b>Cloudflare Workers</b> (OpenNext 어댑터)</summary>
+<summary><b>Cloudflare Workers</b> (내 컴퓨터에서 wrangler 로)</summary>
 
 `NEXT_PUBLIC_*` 는 **빌드 시점에 번들로 인라인**됩니다. `npm run deploy:cf` 는 빌드까지 하므로
 배포를 실행하는 머신(또는 CI)에 `.env.local` 이나 환경 변수로 두 값이 반드시 있어야 합니다.
