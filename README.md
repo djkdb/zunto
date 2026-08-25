@@ -191,19 +191,28 @@ npx vercel --prod
    | Deploy command | `npx wrangler deploy` |
    | Production branch | 배포할 브랜치 (보통 `main`) |
 
-3. **빌드용 환경 변수** 두 개를 넣습니다. `NEXT_PUBLIC_*` 는 런타임이 아니라
-   **빌드 시점에 번들로 박히기 때문에**, 반드시 빌드 환경 변수여야 합니다.
+3. 환경 변수를 넣습니다. **어디에 넣느냐가 값보다 중요합니다.** 아래 표를 지키세요.
 
-   ```
-   NEXT_PUBLIC_SUPABASE_URL
-   NEXT_PUBLIC_SUPABASE_ANON_KEY
-   ```
+   | 변수 | 넣는 곳 | 이유 |
+   |---|---|---|
+   | `NEXT_PUBLIC_SUPABASE_URL` | **빌드** 환경 변수 | 빌드 때 번들에 리터럴로 박힌다 |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **빌드** 환경 변수 | 〃 |
+   | `SUPABASE_SERVICE_ROLE_KEY` | **런타임 Secret** | 서버 전용. 번들에 들어가면 안 된다 |
+
+   `NEXT_PUBLIC_*` 는 빌드 변수에만 넣으면 됩니다. 빌드 때 브라우저 번들과 서버 번들
+   양쪽에 값이 박히기 때문에 런타임 변수로 또 넣을 필요가 없습니다.
 
 4. 첫 배포가 끝나면 **워커 → Settings → Variables and Secrets** 에서
    `SUPABASE_SERVICE_ROLE_KEY` 를 **Secret** 으로 추가하고 한 번 더 배포합니다.
-   (서버 전용 키라 빌드 변수가 아니라 시크릿으로 넣습니다.)
+   (`wrangler secret put` 과 마찬가지로 워커가 만들어진 뒤에야 넣을 수 있습니다.)
 
 5. `https://<워커>.<계정>.workers.dev/api/health` 로 확인합니다.
+
+> **`NEXT_PUBLIC_*` 를 런타임 변수에만 넣으면 조용히 깨집니다.**
+> 서버는 런타임 값을 읽어서 Supabase 를 쓰는데, 브라우저 번들에는 값이 없어서
+> 실시간 연결이 SSE 로 떨어집니다. Cloudflare 는 요청마다 다른 인스턴스가 뜨므로
+> SSE 브로드캐스트가 참가자에게 닿지 않습니다. **방은 만들어지는데 아무도 서로의
+> 화면을 못 봅니다.** `/api/health` 의 `browserHasSupabase` 가 이 경우를 잡아줍니다.
 
 </details>
 
@@ -242,8 +251,15 @@ API 토큰을 쓴다면 다음 권한이 필요합니다.
 
 ```bash
 curl https://debatenight.<계정>.workers.dev/api/health
-# { "ok": true, "store": "supabase", "realtime": "supabase", "hasServiceRole": true }
+# { "ok": true, "mode": "production", "store": "supabase",
+#   "realtime": "supabase", "browserHasSupabase": true, "hasServiceRole": true }
 ```
+
+| 필드 | 뜻 | false 면 |
+|---|---|---|
+| `store` | 서버가 쓰는 저장소 | `memory` = 방이 인스턴스마다 따로 논다 |
+| `browserHasSupabase` | 브라우저 번들에 값이 박혔는가 | `NEXT_PUBLIC_*` 를 빌드 변수로 안 넣은 것 |
+| `hasServiceRole` | 서버 전용 키가 있는가 | RLS 때문에 방 생성이 실패한다 |
 
 `store` 가 `memory` 로 나오면 Supabase 가 안 붙은 것입니다. 화면은 멀쩡히 뜨지만
 **요청마다 다른 인스턴스가 뜨기 때문에 친구가 코드를 넣으면 "그런 방이 없습니다" 가 뜹니다.**

@@ -19,7 +19,18 @@ export async function GET() {
   const hasServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const realtime = supabase ? "supabase" : "sse";
 
+  // 빌드 때 번들에 박힌 값 — 런타임 환경 변수로 덮어쓸 수 없다 (next.config.ts 참고)
+  const browserHasSupabase = process.env.BUILD_HAS_SUPABASE === "1";
+
   const warnings: string[] = [];
+  if (supabase && !browserHasSupabase) {
+    warnings.push(
+      "서버는 Supabase 를 쓰는데 브라우저 번들에는 값이 없습니다. " +
+        "NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY 를 런타임 변수가 아니라 " +
+        "빌드 환경 변수로 넣고 다시 배포하세요. 지금 상태로는 방은 만들어지지만 " +
+        "참가자끼리 화면이 갱신되지 않습니다."
+    );
+  }
   if (!supabase) {
     warnings.push(
       "저장소가 인메모리입니다. 로컬에서는 괜찮지만 서버리스 배포에서는 방이 공유되지 않습니다. " +
@@ -41,6 +52,7 @@ export async function GET() {
       mode: supabase ? "production" : "local",
       store: store.kind,
       realtime,
+      browserHasSupabase,
       hasServiceRole,
       topics: TOPIC_COUNT,
       serverNow: Date.now(),
