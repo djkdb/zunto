@@ -126,8 +126,17 @@ scripts/            시뮬레이터 · 봇
 2. 왼쪽 **SQL Editor → New query** 에 [`supabase/schema.sql`](supabase/schema.sql)
    **전체**를 붙여넣고 **Run**. `Success. No rows returned` 이면 정상입니다.
    이 스크립트가 테이블 · 인덱스 · RLS 정책 · Realtime publication 까지 전부 만듭니다.
-3. **Database → Replication** 에서 `supabase_realtime` 에 `rooms` 가 들어가 있는지 확인.
-   (2번 스크립트가 자동으로 넣지만, 프로젝트에 따라 수동 추가가 필요할 수 있습니다.)
+3. Realtime 이 붙었는지 확인합니다. **SQL Editor** 에서:
+
+   ```sql
+   select schemaname, tablename
+     from pg_publication_tables
+    where pubname = 'supabase_realtime';
+   ```
+
+   `public | rooms` 가 나오면 정상입니다. 대시보드에서 보려면
+   **Database → Publications → supabase_realtime** 입니다.
+   (**Database → Replication** 은 외부로 데이터를 내보내는 다른 기능이라 여기가 아닙니다.)
 4. **Project Settings → API Keys** 에서 값 3개를 복사합니다.
 
 | 이름 | 어디서 | 쓰이는 곳 |

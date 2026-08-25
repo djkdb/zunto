@@ -207,8 +207,18 @@ begin
       alter publication supabase_realtime add table public.rooms;
     exception when duplicate_object then null;
     end;
+  else
+    -- 퍼블리케이션이 없으면 만들어 준다.
+    -- (없는 채로 넘어가면 Realtime 이 조용히 죽어서, 방을 만들어도 다른 사람 화면이 안 바뀐다)
+    create publication supabase_realtime for table public.rooms;
   end if;
 end $$;
+
+-- ── 확인 ─────────────────────────────────────────────────────────────────
+-- 아래가 public | rooms 를 돌려주지 않으면 Realtime 이 안 붙은 것이다.
+--   select schemaname, tablename
+--     from pg_publication_tables
+--    where pubname = 'supabase_realtime';
 
 -- ── RLS ──────────────────────────────────────────────────────────────────
 -- 로그인 없이 코드만으로 들어오는 게임이라, 방은 누구나 읽을 수 있어야 한다.
