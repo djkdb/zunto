@@ -19,7 +19,7 @@ const TEMPLATES: EventTemplate[] = [
   },
   {
     code: "DOUBLE_TIME", title: "더블 타임", emoji: "⏳",
-    desc: "이번 라운드의 발언 시간이 2배가 됩니다. 할 말 없으면 그것도 재미겠네요.",
+    desc: "이번 라운드의 발언 시간이 2배가 됩니다. 하고 싶은 말을 다 해보세요.",
     appliesFrom: "SPEECH", minPlayers: 2, weight: 2,
   },
   {

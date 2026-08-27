@@ -69,13 +69,13 @@ export interface ModeMeta {
 export const MODE_META: Record<DebateMode, ModeMeta> = {
   BALANCE: {
     id: "BALANCE", letter: "A", ko: "밸런스 토론", emoji: "⚖️",
-    tagline: "둘 중 하나. 고른 쪽을 끝까지 방어하라.",
+    tagline: "둘 중 하나. 고른 쪽을 끝까지 방어합니다.",
     how: ["각자 A 또는 B 를 고른다", "고른 쪽의 이유를 주장한다", "반박하고 최종 투표", "표를 더 받은 쪽이 승리"],
     minPlayers: 2, isPickPerson: false, randomAssign: false, estimatedMin: 6,
   },
   PRO_CON: {
     id: "PRO_CON", letter: "B", ko: "찬반 토론", emoji: "🥊",
-    tagline: "앱이 편을 정해준다. 니 생각은 안 물어봤다.",
+    tagline: "편은 앱이 정합니다. 내 생각과 반대일 수도 있습니다.",
     how: ["앱이 찬성/반대를 랜덤 배정", "내 진짜 생각과 상관없이 방어한다", "가장 잘 방어한 사람이 MVP"],
     minPlayers: 2, isPickPerson: false, randomAssign: true, estimatedMin: 7,
   },
@@ -87,7 +87,7 @@ export const MODE_META: Record<DebateMode, ModeMeta> = {
   },
   POINT: {
     id: "POINT", letter: "D", ko: "지목 토론", emoji: "👉",
-    tagline: "여기 있는 사람 중에서 골라. 익명 아님.",
+    tagline: "여기 있는 사람 중에서 고릅니다. 익명 아닙니다.",
     how: ["질문을 보고 한 명을 지목", "전원 공개", "가장 많이 지목된 사람이 해명 발언", "왜 골랐는지 서로 캐묻는다"],
     minPlayers: 3, isPickPerson: true, randomAssign: false, estimatedMin: 4,
   },
@@ -99,8 +99,8 @@ export const MODE_META: Record<DebateMode, ModeMeta> = {
   },
   ADVOCATE: {
     id: "ADVOCATE", letter: "F", ko: "변론 게임", emoji: "😈",
-    tagline: "악마의 변호인. 말도 안 되는 걸 방어해라.",
-    how: ["앱이 입장을 강제로 준다", "60초 동안 그 입장을 방어", "평소 생각은 잊어라", "가장 뻔뻔했던 사람이 승리"],
+    tagline: "악마의 변호인. 말도 안 되는 쪽을 맡습니다.",
+    how: ["앱이 입장을 정해준다", "60초 동안 그 입장을 방어한다", "평소 생각은 잠시 접어둔다", "가장 뻔뻔했던 사람이 승리"],
     minPlayers: 2, isPickPerson: false, randomAssign: true, estimatedMin: 5,
   },
   FRIEND_RATING: {

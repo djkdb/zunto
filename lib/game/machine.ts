@@ -206,7 +206,7 @@ function onPhaseEnter(state: RoomState, step: Step, now: number) {
     case "ASSIGN_REVEAL":
       if (r.mode === "PERSUADE_ONE")
         say(state, `표적은 ${nameOf(state, r.targetId)} 님입니다`, "celebrate");
-      else say(state, "입장이 배정되었습니다. 당신 생각은 아무도 안 물어봤습니다", "celebrate");
+      else say(state, "입장이 배정되었습니다. 내 생각과 반대여도 그 편에서 말해보세요", "celebrate");
       break;
     case "REVEAL":
       if (step.note === "MINORITY_REVEAL") say(state, "결과 공개! 적은 쪽이 오늘의 주인공입니다", "celebrate");
