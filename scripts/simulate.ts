@@ -511,6 +511,36 @@ run("2명일 때도 반박까지 전부 돈다", () => {
   if (state.history.length !== 2) throw new Error("라운드 수 불일치");
 });
 
+run("반박은 반대편에게만 간다", () => {
+  // A/B 를 번갈아 세워도 인원이 쏠리면 순서가 꼬리에서 깨진다.
+  // 그때 "바로 앞 사람" 을 고르면 같은 편끼리 반박하게 된다 — 그걸 막는다.
+  let bad = 0;
+  let selfHit = 0;
+  for (let players = 2; players <= 8; players++) {
+    for (let aCount = 0; aCount <= players; aCount++) {
+      const s = bootstrap(players, { peerRating: "OFF" });
+      apply(s, { type: "CHOOSE_MODE", playerId: s.hostId, mode: "BALANCE" });
+      const ids = s.players.map((p) => p.id);
+      ids.forEach((id, i) =>
+        apply(s, { type: "CHOOSE_STANCE", playerId: id, stance: i < aCount ? "A" : "B" })
+      );
+      for (let k = 0; k < 8 && !s.round?.steps.some((x) => x.phase === "RESULT"); k++) timeoutOnce(s);
+      const r = s.round;
+      if (!r) continue;
+      for (const step of r.steps) {
+        if (step.phase !== "REBUTTAL" || !step.actorId || !step.targetId) continue;
+        if (step.actorId === step.targetId) { selfHit++; continue; }
+        const mine = r.initialStances[step.actorId];
+        if (!mine || r.initialStances[step.targetId] !== mine) continue;
+        // 반대편이 아예 없으면 어쩔 수 없다
+        if (r.order.some((o) => r.initialStances[o] && r.initialStances[o] !== mine)) bad++;
+      }
+    }
+  }
+  if (selfHit) throw new Error(`자기 자신을 반박하는 배정 ${selfHit}건`);
+  if (bad) throw new Error(`반대편이 있는데 같은 편을 반박하는 배정 ${bad}건`);
+});
+
 console.log("\n" + results.join("\n"));
 console.log(`\n${results.length - failures}/${results.length} 통과`);
 if (failures) process.exit(1);

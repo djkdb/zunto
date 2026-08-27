@@ -95,7 +95,11 @@ function tail(settings: RoomSettings, withVoting: boolean): Step[] {
 }
 
 /** 발언 → 반박 → 최종 주장 블록 */
-function debateBlock(order: string[], settings: RoomSettings): Step[] {
+function debateBlock(
+  order: string[],
+  settings: RoomSettings,
+  stances: Record<string, Stance | undefined> = {}
+): Step[] {
   const out: Step[] = [];
   const n = order.length;
 
@@ -104,9 +108,23 @@ function debateBlock(order: string[], settings: RoomSettings): Step[] {
   }
 
   if (n >= 2) {
-    // 각자 바로 앞 사람(순환)을 반박한다
+    // 반박은 반드시 반대편에게 간다.
+    // A/B 를 번갈아 세워도 인원이 한쪽으로 쏠리면 꼬리에서 순서가 깨져서,
+    // "바로 앞 사람" 을 고르면 같은 편끼리 반박하게 된다.
+    // 편마다 커서를 따로 돌려서 반대편 사람들에게 고르게 분배한다.
+    const cursor = new Map<string, number>();
     order.forEach((id, i) => {
-      const target = order[(i - 1 + n) % n];
+      const mine = stances[id];
+      const foes = mine ? order.filter((o) => o !== id && stances[o] && stances[o] !== mine) : [];
+      let target: string;
+      if (foes.length) {
+        const k = cursor.get(mine!) ?? 0;
+        target = foes[k % foes.length];
+        cursor.set(mine!, k + 1);
+      } else {
+        // 전원이 같은 편이라 반대편이 없다 — 바로 앞 사람을 반박한다
+        target = order[(i - 1 + n) % n];
+      }
       out.push({ phase: "REBUTTAL_PICK", actorId: id, targetId: target, ms: T.REBUTTAL_PICK, gate: "NONE" });
       out.push({ phase: "REBUTTAL", actorId: id, targetId: target, ms: T.REBUTTAL, gate: "NONE" });
     });
@@ -157,7 +175,7 @@ export function buildBody(ctx: BodyContext): Step[] {
           out.push({ phase: "SPEECH", actorId: id, ms: settings.speechMs, gate: "NONE" });
         }
       } else {
-        out.push(...debateBlock(order, settings));
+        out.push(...debateBlock(order, settings, stances));
       }
       out.push(...tail(settings, true));
       break;

@@ -304,7 +304,11 @@ function finalizeStances(state: RoomState, now: number) {
   if (r.mode === "MINORITY" && !r.minorityStance) {
     const a = ids.filter((id) => r.initialStances[id] === "A").length;
     const b = ids.length - a;
-    r.minorityStance = a === b ? (rand() < 0.5 ? "A" : "B") : a < b ? "A" : "B";
+    // 아무도 없는 쪽을 소수로 잡으면 안 된다. 그러면 반박할 상대가 없어서
+    // 전원이 자기 자신을 반박하는 스텝이 만들어진다.
+    // 전원이 한쪽이면 그 쪽이 곧 전부다 — 반박 없이 각자 말하고 넘어간다.
+    r.minorityStance =
+      a === 0 ? "B" : b === 0 ? "A" : a === b ? (rand() < 0.5 ? "A" : "B") : a < b ? "A" : "B";
   }
 
   // 표적의 입장이 정해지면 나머지 전원은 자동으로 반대편이 된다
